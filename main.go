@@ -2,7 +2,9 @@
 package main
 
 import (
+	"fmt"
 	"math"
+	"os"
 	"time"
 
 	"github.com/faiface/beep"
@@ -77,10 +79,26 @@ func main() {
 		panic(err)
 	}
 
-	for _, t := range jingleBells {
-		samples := int(float64(44100) * t.delay.Seconds())
-		sineWave := &SineWave{freq: t.freq, srate: beep.SampleRate(44100)}
-		speaker.Play(beep.Take(samples, sineWave))
-		time.Sleep(t.delay)
+	exit := make(chan os.Signal, 1)
+
+	go func() {
+		fmt.Println("Press ENTER to stop playing")
+		fmt.Scanln()
+		exit <- os.Interrupt
+	}()
+
+playLoop:
+	for {
+		for _, t := range jingleBells {
+			select {
+			case <-exit:
+				break playLoop
+			default:
+				samples := int(float64(44100) * t.delay.Seconds())
+				sineWave := &SineWave{freq: t.freq, srate: beep.SampleRate(44100)}
+				speaker.Play(beep.Take(samples, sineWave))
+				time.Sleep(t.delay)
+			}
+		}
 	}
 }
